@@ -1,0 +1,211 @@
+
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REAL LIFE</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden;background:#87ceeb;font-family:Arial}
+#info{position:absolute;top:12px;left:12px;color:white;background:#111b;padding:12px;border-radius:12px;z-index:2}
+#controls{position:absolute;bottom:25px;left:0;right:0;display:flex;justify-content:space-between;padding:20px;z-index:3}
+.pad{display:grid;grid-template-columns:55px 55px 55px;gap:5px}
+button{border:0;border-radius:13px;background:#111b;color:white;font-size:22px;width:55px;height:55px;touch-action:none}
+button:active{background:#168bda}
+#right{display:flex;align-items:center}
+#help{font-size:12px}
+</style>
+</head>
+<body>
+<div id="info">
+  <b>🏙 REAL LIFE</b><br>
+  <span id="status">Toshkent shahri | $1000</span>
+  <div id="help">Birinchi 3D prototip</div>
+</div>
+
+<div id="controls">
+  <div class="pad">
+    <span></span><button data-key="up">▲</button><span></span>
+    <button data-key="left">◀</button><button data-key="down">▼</button><button data-key="right">▶</button>
+  </div>
+  <div id="right">
+    <button id="jump">●</button>
+  </div>
+</div>
+
+<script type="importmap">
+{
+ "imports":{
+  "three":"https://unpkg.com/three@0.160.0/build/three.module.js"
+ }
+}
+</script>
+<script type="module">
+import * as THREE from "three";
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+scene.fog = new THREE.Fog(0x87ceeb,45,180);
+
+const camera = new THREE.PerspectiveCamera(65,innerWidth/innerHeight,0.1,500);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));
+renderer.shadowMap.enabled=true;
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xffffff,0x667788,2));
+const sun = new THREE.DirectionalLight(0xffffff,2);
+sun.position.set(30,50,20);
+sun.castShadow=true;
+scene.add(sun);
+
+const ground = new THREE.Mesh(
+ new THREE.PlaneGeometry(220,220),
+ new THREE.MeshStandardMaterial({color:0x63865a})
+);
+ground.rotation.x=-Math.PI/2;
+ground.receiveShadow=true;
+scene.add(ground);
+
+// Roads
+function road(x,z,w,d){
+ const r=new THREE.Mesh(
+  new THREE.BoxGeometry(w,0.12,d),
+  new THREE.MeshStandardMaterial({color:0x30343a})
+ );
+ r.position.set(x,0.07,z);
+ scene.add(r);
+}
+road(0,0,14,220);
+road(0,0,220,14);
+
+// Road markings
+for(let i=-100;i<=100;i+=9){
+ const line=new THREE.Mesh(
+  new THREE.BoxGeometry(.25,.04,4),
+  new THREE.MeshBasicMaterial({color:0xffffff})
+ );
+ line.position.set(0,.15,i);
+ scene.add(line);
+}
+
+// Buildings
+for(let x=-80;x<=80;x+=20){
+ for(let z=-80;z<=80;z+=20){
+  if(Math.abs(x)<15 || Math.abs(z)<15) continue;
+  const h=8+Math.random()*22;
+  const w=8+Math.random()*4;
+  const building=new THREE.Mesh(
+   new THREE.BoxGeometry(w,h,9),
+   new THREE.MeshStandardMaterial({
+    color:new THREE.Color().setHSL(.55+Math.random()*.1,.2,.35+Math.random()*.2)
+   })
+  );
+  building.position.set(x,h/2,z);
+  building.castShadow=true;
+  building.receiveShadow=true;
+  scene.add(building);
+  for(let y=3;y<h-1;y+=3){
+   for(let side of [-1,1]){
+    const win=new THREE.Mesh(
+     new THREE.BoxGeometry(.9,1.2,.08),
+     new THREE.MeshBasicMaterial({color:0x9edfff})
+    );
+    win.position.set(x+side*w/3,y,z-4.56);
+    scene.add(win);
+   }
+  }
+ }
+}
+
+// Player
+const player=new THREE.Group();
+const body=new THREE.Mesh(
+ new THREE.CapsuleGeometry(.55,1.1,4,8),
+ new THREE.MeshStandardMaterial({color:0x1769d2})
+);
+body.position.y=1.1;
+body.castShadow=true;
+player.add(body);
+
+const head=new THREE.Mesh(
+ new THREE.SphereGeometry(.38,16,16),
+ new THREE.MeshStandardMaterial({color:0xffc28c})
+);
+head.position.y=2.1;
+player.add(head);
+player.position.set(3,0,8);
+scene.add(player);
+
+// Car
+const car=new THREE.Group();
+const base=new THREE.Mesh(
+ new THREE.BoxGeometry(2.2,.8,4),
+ new THREE.MeshStandardMaterial({color:0xd92323})
+);
+base.position.y=.65;
+car.add(base);
+const cabin=new THREE.Mesh(
+ new THREE.BoxGeometry(1.7,.8,2),
+ new THREE.MeshStandardMaterial({color:0x8bd5ed})
+);
+cabin.position.set(0,1.35,-.2);
+car.add(cabin);
+car.position.set(7,0,12);
+scene.add(car);
+
+const keys={};
+document.querySelectorAll("[data-key]").forEach(btn=>{
+ const key=btn.dataset.key;
+ btn.addEventListener("pointerdown",e=>{e.preventDefault();keys[key]=true});
+ ["pointerup","pointerleave","pointercancel"].forEach(ev=>
+  btn.addEventListener(ev,()=>keys[key]=false)
+ );
+});
+addEventListener("keydown",e=>{
+ const map={ArrowUp:"up",w:"up",ArrowDown:"down",s:"down",ArrowLeft:"left",a:"left",ArrowRight:"right",d:"right"};
+ if(map[e.key])keys[map[e.key]]=true;
+});
+addEventListener("keyup",e=>{
+ const map={ArrowUp:"up",w:"up",ArrowDown:"down",s:"down",ArrowLeft:"left",a:"left",ArrowRight:"right",d:"right"};
+ if(map[e.key])keys[map[e.key]]=false;
+});
+
+let angle=0;
+document.getElementById("jump").onclick=()=>{
+ player.position.y=1;
+ setTimeout(()=>player.position.y=0,250);
+};
+
+function animate(){
+ requestAnimationFrame(animate);
+ let move=0,turn=0;
+ if(keys.up)move=1;
+ if(keys.down)move=-1;
+ if(keys.left)turn=1;
+ if(keys.right)turn=-1;
+ angle+=turn*.045;
+ player.rotation.y=angle;
+ player.position.x+=Math.sin(angle)*move*.13;
+ player.position.z+=Math.cos(angle)*move*.13;
+
+ camera.position.set(
+  player.position.x-Math.sin(angle)*9,
+  player.position.y+6,
+  player.position.z-Math.cos(angle)*9
+ );
+ camera.lookAt(player.position.x,player.position.y+1,player.position.z);
+ renderer.render(scene,camera);
+}
+animate();
+
+addEventListener("resize",()=>{
+ camera.aspect=innerWidth/innerHeight;
+ camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth,innerHeight);
+});
+</script>
+</body>
+</html>
